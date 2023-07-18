@@ -1,0 +1,26 @@
+{
+  "name": "hsnc",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "kumavis <aaron@kumavis.me>",
+  "license": "MIT",
+  "scripts": {
+    "start": "node index.js",
+    "setup": "yarn && patch-package && allow-scripts"
+  },
+  "devDependencies": {
+    "@lavamoat/allow-scripts": "^2.3.1",
+    "@lavamoat/preinstall-always-fail": "^1.0.0",
+    "patch-package": "^7.0.2"
+  },
+  "dependencies": {
+    "@deadcanaries/hsv3": "^1.1.6"
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "$root$": false,
+      "@deadcanaries/hsv3>@deadcanaries/granax": true,
+      "@lavamoat/preinstall-always-fail": false
+    }
+  }
+}
