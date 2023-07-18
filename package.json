@@ -5,7 +5,7 @@
   "author": "kumavis <aaron@kumavis.me>",
   "license": "MIT",
   "scripts": {
-    "start": "node index.js",
+    "start": "node example.js",
     "setup": "yarn && patch-package && allow-scripts"
   },
   "devDependencies": {
@@ -14,7 +14,8 @@
     "patch-package": "^7.0.2"
   },
   "dependencies": {
-    "@deadcanaries/hsv3": "^1.1.6"
+    "@deadcanaries/hsv3": "^1.1.6",
+    "socks": "^2.7.1"
   },
   "lavamoat": {
     "allowScripts": {
