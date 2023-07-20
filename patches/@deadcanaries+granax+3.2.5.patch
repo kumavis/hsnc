@@ -1,33 +1,5 @@
-diff --git a/node_modules/@deadcanaries/granax/bin/Tor/PluggableTransports/lyrebird b/node_modules/@deadcanaries/granax/bin/Tor/PluggableTransports/lyrebird
-new file mode 100755
-index 0000000..7986d27
-Binary files /dev/null and b/node_modules/@deadcanaries/granax/bin/Tor/PluggableTransports/lyrebird differ
-diff --git a/node_modules/@deadcanaries/granax/bin/Tor/PluggableTransports/snowflake-client b/node_modules/@deadcanaries/granax/bin/Tor/PluggableTransports/snowflake-client
-new file mode 100755
-index 0000000..2c97b82
-Binary files /dev/null and b/node_modules/@deadcanaries/granax/bin/Tor/PluggableTransports/snowflake-client differ
-diff --git a/node_modules/@deadcanaries/granax/bin/Tor/libcrypto.so.1.1 b/node_modules/@deadcanaries/granax/bin/Tor/libcrypto.so.1.1
-new file mode 100755
-index 0000000..3fd1c82
-Binary files /dev/null and b/node_modules/@deadcanaries/granax/bin/Tor/libcrypto.so.1.1 differ
-diff --git a/node_modules/@deadcanaries/granax/bin/Tor/libevent-2.1.so.7 b/node_modules/@deadcanaries/granax/bin/Tor/libevent-2.1.so.7
-new file mode 100755
-index 0000000..08de765
-Binary files /dev/null and b/node_modules/@deadcanaries/granax/bin/Tor/libevent-2.1.so.7 differ
-diff --git a/node_modules/@deadcanaries/granax/bin/Tor/libssl.so.1.1 b/node_modules/@deadcanaries/granax/bin/Tor/libssl.so.1.1
-new file mode 100755
-index 0000000..a24dea5
-Binary files /dev/null and b/node_modules/@deadcanaries/granax/bin/Tor/libssl.so.1.1 differ
-diff --git a/node_modules/@deadcanaries/granax/bin/Tor/libstdc++/libstdc++.so.6 b/node_modules/@deadcanaries/granax/bin/Tor/libstdc++/libstdc++.so.6
-new file mode 100755
-index 0000000..020519b
-Binary files /dev/null and b/node_modules/@deadcanaries/granax/bin/Tor/libstdc++/libstdc++.so.6 differ
-diff --git a/node_modules/@deadcanaries/granax/bin/Tor/tor b/node_modules/@deadcanaries/granax/bin/Tor/tor
-new file mode 100755
-index 0000000..89cb6f8
-Binary files /dev/null and b/node_modules/@deadcanaries/granax/bin/Tor/tor differ
 diff --git a/node_modules/@deadcanaries/granax/index.js b/node_modules/@deadcanaries/granax/index.js
-index fab3630..1579f1b 100644
+index fab3630..aaace2f 100644
 --- a/node_modules/@deadcanaries/granax/index.js
 +++ b/node_modules/@deadcanaries/granax/index.js
 @@ -14,7 +14,7 @@ const { readFileSync } = require('fs');
@@ -39,8 +11,17 @@ index fab3630..1579f1b 100644
  );
  
  
+@@ -114,7 +114,7 @@ module.exports.tor = function(platform) {
+       break;
+     case 'darwin':
+       torpath = path.join(BIN_PATH, '.tbb.app', 'Contents', 'MacOS', 'Tor',
+-        'tor.real');
++        'tor');
+       break;
+     case 'android':
+     case 'linux':
 diff --git a/node_modules/@deadcanaries/granax/script/download-tbb.js b/node_modules/@deadcanaries/granax/script/download-tbb.js
-index edd3ca0..e606b93 100644
+index edd3ca0..c3d7460 100644
 --- a/node_modules/@deadcanaries/granax/script/download-tbb.js
 +++ b/node_modules/@deadcanaries/granax/script/download-tbb.js
 @@ -33,17 +33,18 @@ exports.getTorBrowserLink = function(platform, version, callback) {
@@ -67,7 +48,72 @@ index edd3ca0..e606b93 100644
        default:
          throw new Error(`Unsupported platform "${platform}"`);
      }
-@@ -261,7 +262,7 @@ exports.install = function(callback) {
+@@ -136,9 +137,28 @@ exports._unpackMacintosh = function(bundle, callback) {
+     path.join(BIN_DIR, '.tbb.dmg')
+   ], { cwd: BIN_DIR });
+ 
++  const finalback = (err, value) => {
++    const extract = childProcess.spawn('hdiutil', [
++      'detach',
++      path.join(BIN_DIR, '.tbb')
++    ], { cwd: BIN_DIR });
++
++    extract.on('close', (code) => {
++      if (code < 0) {
++        const unpackErr = new Error('Failed to unpack bundle');
++        if (err) {
++          unpackErr = new AggregateError([unpackErr, err], 'Multiple errors attempting to unpack Tor');
++        }
++        return callback(unpackErr);
++      }
++
++      callback(null, value);
++    });
++  };
++
+   mounter.on('close', (code) => {
+     if (code < 0) {
+-      return callback(new Error('Failed to unpack bundle'));
++      return finalback(new Error('Failed to unpack bundle'));
+     }
+ 
+     ncp.ncp(
+@@ -146,21 +166,10 @@ exports._unpackMacintosh = function(bundle, callback) {
+       path.join(BIN_DIR, '.tbb.app'),
+       (err) => {
+         if (err) {
+-          return callback(new Error('Failed to unpack bundle'));
++          return finalback(new Error('Failed to unpack bundle'));
+         }
+ 
+-        const extract = childProcess.spawn('hdiutil', [
+-          'detach',
+-          path.join(BIN_DIR, '.tbb')
+-        ], { cwd: BIN_DIR });
+-
+-        extract.on('close', (code) => {
+-          if (code < 0) {
+-            callback(new Error('Failed to unpack bundle'));
+-          }
+-
+-          callback(null, getTorPath('darwin'));
+-        });
++        finalback(null, getTorPath('darwin'));
+       }
+     );
+   });
+@@ -242,7 +251,9 @@ exports.install = function(callback) {
+           const source = path.dirname(granax.tor(os.platform()));
+           const dest = path.join(BIN_DIR, 'Tor');
+ 
+-          console.log(`Moving tor binary and libs to ${dest}...`);
++          console.log(`Moving tor binary and libs from ${JSON.stringify(source)} to ${JSON.stringify(dest)}...`);
++          // Just in case a prior exists:
++          rimraf.sync(dest);
+           mv(source, dest, (err) => {
+             if (err) {
+               return callback(err);
+@@ -261,7 +272,7 @@ exports.install = function(callback) {
                  break;
                case 'android':
                case 'linux':
